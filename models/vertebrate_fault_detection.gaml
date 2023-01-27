@@ -1,7 +1,5 @@
 /**
 * Name: Decentralized Model with Leader among Groups
-* Based on the internal empty template. 
-* Author: sebastian
 * Tags: 
 */
 
@@ -146,16 +144,11 @@ global {
 	//Adapted for different performance of agents
 	reflex social_foraging {
 		
-		
-		//list<list<transporter>> 
 		non_solo_groups <- groups where (length(each) > 1); 
 		
 		if(length(non_solo_groups) > 0)
 		{
-			///// ==> normally one selected leader from the group would do this! A selection algorithm like the Bully-Algorithm (Garcia-Molina, 1982) should be sufficient for this
-			/////// this would be to ensure that not every member of the group calculates its share for itself one after another. So one member would e.g. modify the group size and another member gets a different result, and modifies something else
-			
-			
+			// of course, agents do not calculate a share to decide on, but rather take the observation of the performance. Here, we do the calculation centralized in global to avoid that agents get into a race condition while evaluating the group's performance.  
 			
 			loop i from: 0 to: length(non_solo_groups)-1 {
 				
@@ -171,10 +164,9 @@ global {
 				if(share = 1){
 					
 					ask non_solo_groups[i]{
-						//fault_counter <- fault_counter -1; TODO: change no. 2
-						fault_counter <- 0;
 						
-						do decrease_com_radius(); //TODO: chane no. 1; seems to be a bit stabler?? is that so? at least no outliers à la 30k ... oO
+						fault_counter <- 0; // reset fault counter directly to zero
+						do decrease_com_radius(); // decerase com radius by one step
 					}
 					
 				} else if(share > 1){
@@ -185,7 +177,7 @@ global {
 						
 						do increase_com_radius(); 
 							
-						//any transporter in reach that is not already tied to me - could also be already tied transporter (is that so TODO???)
+						//any transporter in reach that is not already tied to me - could also be already tied transporter
 						transporter t <- one_of(self.transporters_in_reach()); 
 						
 						//tend to take transporters in reach that have smaller asshat counter than anyone else 
@@ -218,14 +210,13 @@ global {
 				}else if(share < 1) {
 					//negative outcome
 					
-					
 					//every member of the group:
 					ask non_solo_groups[i]{
 						
 						transporter t <- one_of(self.ties); //take one of ALL present ties 
 						
 						remove t from: self.ties;
-						//remove a random tie, increase that one's faul counter
+						//remove a random tie, increase that one's fault counter
 						if(t != nil){
 							t.fault_counter <- t.fault_counter +1;
 						}
@@ -249,7 +240,7 @@ global {
 				/*create new random tie */
 				list<transporter> available_new_ties <- self.transporters_in_reach()-self.ties;
 				
-				if(! empty(available_new_ties)){
+				if((!(available_new_ties contains nil)) and (! empty(available_new_ties))){
 					add one_of(available_new_ties) to: self.ties;
 					
 					if(verbose_mode){
@@ -272,20 +263,6 @@ global {
 				if(groups_share all_match (each = 1.0)){
 					//end simulation as all groups have been found and their usage is ideal
 					do endOfAlgorithm;
-									
-					/*write "End of algorithm - groups were found" color:#red;
-					
-					//list<list<transporter>> singletons <- (groups where (length(each) = 1) ) sort_by each[0].fault_counter;
-					list<list<transporter>> singletons <- (groups where (length(each) != R) ) sort_by each[0].fault_counter;
-					
-					
-					loop s over: singletons
-					{
-						write first(s).name + " - " + first(s).fault_counter + " " + (first(s).size > 1.0 ? "(faulty)" :  "");
-					}
-					
-					check_abort <- false;
-					do pause;*/
 				}	
 			}
 			
@@ -311,40 +288,13 @@ global {
 					//if all these groups have a share of 1.0 (which means ideal usage)
 					if(checked_all){
 						//end simulation as all groups have been found and their usage is ideal				
-						
 						do endOfAlgorithm;
-						
-						/*write "End of algorithm - groups were found" color:#red;
-						
-						list<transporter> singletons <- [];
-						
-						list<list<transporter>> non_full <- (groups where (length(each) != R) );
-						
-						loop g over: non_full {
-							loop t over:g {
-								singletons <- singletons + t; //add all agents to list
-							}
-						}
-
-						singletons <- singletons sort_by each.fault_counter;
-						
-						loop s over: singletons
-						{
-							write s.name + " - " + s.fault_counter + " " + (s.size > 1.0 ? "(faulty)" :  "");
-						}
-						
-						check_abort <- false;
-						do pause;*/
 					}
-					//
 			}
 			
 		}
 	}
 	
-		//list<list<transporter>> t <- groups where (length(each) = 1);
-		//if((length(groups where (length(each) = 1)) = (length(transporter) mod R)) and (length(groups) = ((length(transporter) mod R) + int(length(transporter) / R) )) ){
-
 
 	/************************************************Actions************************************************/
 	
@@ -443,25 +393,42 @@ species transporter schedules:[] {
 	reflex when: i_am_alone {
 		
 		//increase com radius as transporter naturally wants to increase chance to find mates
-		do increase_com_radius(); 
-												
-		//any transporter in reach that is not already tied to me - could also be already tied transporter
+		//small prob lets agent first search local area before extending radius; 1.0 leads to extension in every step
+		
+		 do increase_com_radius();
+
+		//for any transporter in reach that is not already tied to me - could also be already tied transporter
 		transporter t <- one_of(self.transporters_in_reach()); 
 		if(t != nil){
 			add t to: self.ties;
+			ties <- remove_duplicates(ties);
 		}
-		
-		ties <- remove_duplicates(ties);
 		
 	}
 	
-	/*Returns all transporters in communication distnace without self*/
+	/*Returns all transporters in communication distance without self*/
 	list<transporter> transporters_in_reach{
 		
-		list<transporter> t <- ((agents_inside(circle(com_radius)) of_generic_species transporter)-self);
+		list<transporter> t <- [];
+		
+		if(com_radius > 0){
+			
+			list<agent> A <- agents_inside(circle(com_radius)) ;
+
+			if(A contains nil)
+			{
+				error "A contains NIL at " + name ;
+			}
+			
+			list<transporter> all_near <- (agents_inside(circle(com_radius)) of_generic_species transporter);
+			
+			
+			if((!empty(all_near) ) or (all_near = nil)){
+				t <- (all_near-self);
+			}
+		}
 		
 		return t;
-		
 	}
 	
 	action increase_com_radius{
@@ -503,18 +470,21 @@ species transporter schedules:[] {
 
 /*####################################################*/
 
-experiment DecCoopExperiment type:gui{
+experiment DecFaultDetection type:gui{
 
 	//parameter var: setup_file <- "../includes/diagonal.csv";
 	//parameter var: setup_file <- "../includes/checker.csv";
 	parameter var: setup_file <- "../includes/free.csv";
+	//parameter var: setup_file <- "../includes/free105.csv";
 	
 
 	parameter var: world_size <- 250#m;
-	parameter var:R<- 5;
+	parameter var:R<- 3;
 
 	parameter var:new_tie_prob <- 0.0005; //Cantor: 0.0001;
 	parameter var: init_prob <- 0.05 min: 0.0 max: 1.0;
+	
+	parameter var:init_com_radius <- 10.0#m ; //[0.0#m , 10.0#m, 25.0#m, 50#m ]; 
 	
 	
 	output {	
@@ -528,26 +498,24 @@ experiment DecCoopExperiment type:gui{
 		
 		inspect "my_species_inspector" value: transporter attributes: ["name","fault_counter"] type:table;
 		
-		/*display statistics{
-			chart "amount of groups" type:series size:{1 ,0.5} position:{0, 0.0}{
-					data "No. of groups" value: length(groups) color:#purple marker:false ;		
-			}
-	 	}*/		
 	}
 }
 
-/*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
+/*Runs an amount of simulations in parallel, varies the initial communication radius*/
 //"check_abort = false" equals length(groups where (length(each) = R)) = int(length(transporter) / R)) with all groups having share 1.0
-experiment Performance type: batch until: (check_abort = false) repeat: 50 autorun: true keep_seed: true{ 
+experiment Performance type: batch until: ((check_abort = false) or (cycle > 50000) ) repeat: 100 autorun: true keep_seed: true{ 
 
-	parameter var: setup_file <- "../includes/checker.csv";
-	
+	parameter var: setup_file <- "../includes/checker.csv"; //1
+	//parameter var: setup_file <- "../includes/free.csv"; //2
+	//parameter var: setup_file <- "../includes/diagonal.csv"; //3
+	//parameter var: setup_file <- "../includes/free105.csv"; //4
+		
 	parameter var: world_size <- 250#m;
-	parameter var:R<- 3;
-	parameter var:new_tie_prob <- 0.0005; //Cantor: 0.0001;
+	parameter var:R <- 3;
+	parameter var:new_tie_prob <- 0.0005; //Cantor: 0.0001
 	parameter var: init_prob <- 0.05 min: 0.0 max: 1.0;
-
-	parameter var:init_com_radius among: [0.0#m , 25.0#m, 50#m ]; 
+	
+	parameter var:init_com_radius among: [0.0#m , 10.0#m, 25.0#m, 50#m ]; 
 	parameter var: check_abort <- true;
 
 	reflex save_results_explo {
@@ -558,7 +526,7 @@ experiment Performance type: batch until: (check_abort = false) repeat: 50 autor
 			list<transporter> singletons <- [];
 			
 			loop g over: singleton_groups{
-				loop s over: g{
+				loop s over: g{ 
 					add s to: singletons;
 				}
 			}
@@ -579,7 +547,7 @@ experiment Performance type: batch until: (check_abort = false) repeat: 50 autor
 		
 		//init_com_radius
     	save [int(self), self.cycle,  highest_counter, faulty_transporter, (faulty_transporter = highest_counter), average_com_range, init_com_radius, length(transporter),average_ties ]
-           to: "/simulation_results/result_CHECKME_reset_v2.csv" type: "csv" rewrite: false header: true; 
+           to: "/simulation_results/1_checker_results.csv" type: "csv" rewrite: false header: true; 
     	}       
 	}		
 }
