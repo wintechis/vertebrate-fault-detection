@@ -22,7 +22,7 @@ global {
 	list<list<transporter>> non_solo_groups <- []; //all cooperational groups of agents with more than one member;
 	list<float> groups_share <- []; //holds the respective share pre group (adressed by index, s.t. groups[i] <--> groups_share[i] belong together)  
 	
-	int R <- 0; //pre-given total share of group 
+	int R <- 0; //given goal state for cooperation (Cantor: total share of group resource) 
 
 	float init_com_radius <- 0.0#m;	
 	
@@ -58,13 +58,8 @@ global {
         	
         }
         
-		
-		
 		//create transporter number: transporter_no;
 		transporter_no <- length(transporter);
-			
-		
-		
 		
 		ask transporter{
 		
@@ -109,7 +104,6 @@ global {
 	    	}
 	    }
 		
-		
 	    if(verbose_mode){
 		    //write groups;
 		    write "####################################################";
@@ -148,7 +142,8 @@ global {
 		
 		if(length(non_solo_groups) > 0)
 		{
-			// of course, agents do not calculate a share to decide on, but rather take the observation of the performance. Here, we do the calculation centralized in global to avoid that agents get into a race condition while evaluating the group's performance.  
+			//agents do not calculate a share to decide on, but rather take the observation of the performance. 
+			//Here, we calculate in the global reflex (centralized) to avoid that agents get into a race condition while evaluating the group's performance.  
 			
 			loop i from: 0 to: length(non_solo_groups)-1 {
 				
@@ -173,7 +168,6 @@ global {
 					//missed opportunities
 					
 					ask non_solo_groups[i]{
-						
 						
 						do increase_com_radius(); 
 							
@@ -249,7 +243,6 @@ global {
 				}
 			}
 		}
-		
 	}
 	
 	//end conditions for algorithm -- if R groups are found and they have ideal usage, the algorithm is done
@@ -277,21 +270,20 @@ global {
 							if(groups_share[i] = 1.0){
 								//all good check next
 								//this tedious loop is to ensure that we only check groups that actually have R members 
-							}else{
-								//right amount of agents but not ideal usage
-								checked_all <- false;					
-								break;
-							}
+						}else{
+							//right amount of agents but not ideal usage
+							checked_all <- false;					
+							break;
 						}
 					}
+				}
 				
-					//if all these groups have a share of 1.0 (which means ideal usage)
-					if(checked_all){
-						//end simulation as all groups have been found and their usage is ideal				
-						do endOfAlgorithm;
-					}
+				//if all these groups have a share of 1.0 (which means ideal usage)
+				if(checked_all){
+					//end simulation as all groups have been found and their usage is ideal				
+					do endOfAlgorithm;
+				}
 			}
-			
 		}
 	}
 	
@@ -319,7 +311,6 @@ global {
 		return sym;
 	}
 
-
 	/*Depth first search for Groups. Takes to be checked transporter, list of symmetric relations and currently built group */
 	action DFSGroup(transporter t, list<pair<transporter, transporter>> sym, list<transporter> group){
 		t.visited <- 1; //mark transporter as visited
@@ -328,11 +319,11 @@ global {
 		
 		loop s over: sym{
 			if(s.key = t){
-				if(s.value.visited = 0){//not visited
+				if(s.value.visited = 0){ //not visited
 					do DFSGroup2(s.value, sym,group);
 				}
 			}else if(s.value = t){
-				if(s.key.visited = 0){//not visited
+				if(s.key.visited = 0){ //not visited
 					do DFSGroup2(s.key, sym,group);
 				}
 			}
@@ -344,7 +335,7 @@ global {
 		do DFSGroup(t,sym,group);
 	}
 	
-	/* just to avoid copying - gathers all transporters that are not in ideal groups, sorts them and prints their information*/
+	/* Takes all transporters that are not in ideal groups, sorts them and prints their information*/
 	action endOfAlgorithm{
 		write "End of algorithm - groups were found" color:#red;
 						
@@ -366,19 +357,13 @@ global {
 		}
 		
 		check_abort <- false;
-		//do pause;
 	}
-	
-	
 }
-
 
 //schedules agents, such that the simulation of their behaviour and the reflex evaluation is random and not always in the same order 
 species scheduler schedules: shuffle(transporter);
 
-
 species transporter schedules:[] {
-	
 	
 	list<transporter> ties <- [];
 	bool i_am_alone <- true;
@@ -403,7 +388,6 @@ species transporter schedules:[] {
 			add t to: self.ties;
 			ties <- remove_duplicates(ties);
 		}
-		
 	}
 	
 	/*Returns all transporters in communication distance without self*/
@@ -421,7 +405,6 @@ species transporter schedules:[] {
 			}
 			
 			list<transporter> all_near <- (agents_inside(circle(com_radius)) of_generic_species transporter);
-			
 			
 			if((!empty(all_near) ) or (all_near = nil)){
 				t <- (all_near-self);
@@ -452,7 +435,8 @@ species transporter schedules:[] {
 	aspect showName{
 		draw string(name) color: #red ;
 	}
-		//draws arrow to show current target station 
+
+	//draws arrow to show current target station 
 	aspect ties{ 
 		if(ties != nil)
     	{
@@ -476,7 +460,6 @@ experiment DecFaultDetection type:gui{
 	//parameter var: setup_file <- "../includes/checker.csv";
 	parameter var: setup_file <- "../includes/free.csv";
 	//parameter var: setup_file <- "../includes/free105.csv";
-	
 
 	parameter var: world_size <- 250#m;
 	parameter var:R<- 3;
@@ -485,7 +468,6 @@ experiment DecFaultDetection type:gui{
 	parameter var: init_prob <- 0.05 min: 0.0 max: 1.0;
 	
 	parameter var:init_com_radius <- 10.0#m ; //[0.0#m , 10.0#m, 25.0#m, 50#m ]; 
-	
 	
 	output {	
 		layout #split;
@@ -497,7 +479,6 @@ experiment DecFaultDetection type:gui{
 		}
 		
 		inspect "my_species_inspector" value: transporter attributes: ["name","fault_counter"] type:table;
-		
 	}
 }
 
