@@ -28,7 +28,7 @@ includes/ - contains .csv files for setup, described by units' positions
 
 models/
 - vertebrate_fault_detection.gaml : contains setup and behavior for central control and transporters, which can act as controlled AGVs or DALI
-- simulation_result/ - contains measured data \*.ods with consolidated tables of all values with results per model, name indicates which was applied. Entries show which initial setting was chosen for communication range. 
+- simulation_result/ - contains measured data \*.csv with tables of all values with results per model, name indicates which was applied. Entries show which initial setting was chosen for communication range. 
 - snapshots/ : example pictures of the setups for visualization
 
 
