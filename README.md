@@ -39,6 +39,6 @@ models/
 - [Import the project into your workspace](https://gama-platform.github.io/wiki/ImportingModels)
 - Run the included experiments in /models/failsafe_manufacturing.gaml:
   - "DecFaultDetection": run a simulation with an animated GUI
-  - "Performance" and "PerformanceBgSize": run a batch of simulations to measure performance, with pre-sets according to parameters - different setups may be chosen. "BigSize" is for running the random setup with 150 units.
+  - "Performance" and "PerformanceBigSize": run a batch of simulations to measure performance, with pre-sets according to parameters - different setups may be chosen. "BigSize" is for running the random setup with 150 units.
 - Note that the simulation results are saved in separate files
 
